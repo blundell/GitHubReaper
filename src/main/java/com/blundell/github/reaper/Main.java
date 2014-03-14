@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
@@ -25,7 +26,6 @@ public class Main {
         validate(args);
         checkRates(args);
         doYourThing(args);
-
     }
 
     private static void validate(String[] args) {
@@ -63,7 +63,8 @@ public class Main {
 
     private static void doYourThing(String[] args) throws IOException {
         URL url = getNextPullRequestPageUrl(args);
-        List<GsonPullRequest> pullRequests = getPullRequests(args, url);
+        List<GsonPullRequest> pullRequests = new ArrayList<GsonPullRequest>();
+        getPullRequests(args, url, pullRequests);
 
         for (GsonPullRequest request : pullRequests) {
             System.out.println("PR: " + request.getNumber());
@@ -71,12 +72,15 @@ public class Main {
     }
 
     private static URL getNextPullRequestPageUrl(String[] args) throws IOException {
-        HttpURLConnection connection = getPullRequests(args);
+        HttpURLConnection connection = connectForPullRequests(args, null);
         return getNextPageUrl(connection);
     }
 
-    private static HttpURLConnection getPullRequests(String[] args) throws IOException {
-        URL url = new URL("https://api.github.com/repos/" + args[2] + "/" + args[3] + "/pulls?state=all");
+    private static HttpURLConnection connectForPullRequests(String[] args, URL newUrl) throws IOException {
+        URL url = newUrl;
+        if (url == null) {
+            url = new URL("https://api.github.com/repos/" + args[2] + "/" + args[3] + "/pulls?state=all");
+        }
         OkHttpClient client = new OkHttpClient();
         HttpURLConnection connection = client.open(url);
         connection.setRequestMethod("GET");
@@ -96,9 +100,16 @@ public class Main {
         return new URL(pageLinks.getNext());
     }
 
-    private static List<GsonPullRequest> getPullRequests(String[] args, URL url) throws IOException {
-        HttpURLConnection connection = getPullRequests(args);
-        return parsePullRequests(connection);
+    private static void getPullRequests(String[] args, URL url, List<GsonPullRequest> pullRequests) throws IOException {
+        HttpURLConnection connection = connectForPullRequests(args, url);
+        pullRequests.addAll(parsePullRequests(connection));
+        URL nextPageUrl;
+        try {
+            nextPageUrl = getNextPageUrl(connection);
+        } catch (MalformedURLException e) {
+            return;
+        }
+        getPullRequests(args, nextPageUrl, pullRequests);
     }
 
     private static List<GsonPullRequest> parsePullRequests(HttpURLConnection connection) throws IOException {
