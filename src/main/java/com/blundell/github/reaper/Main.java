@@ -34,6 +34,7 @@ public class Main {
         validate(args);
         checkRates(args);
         doYourThing(args);
+        System.out.println("Complete");
     }
 
     private static void validate(String[] args) {
@@ -95,10 +96,14 @@ public class Main {
                 List<URL> urls = pullGitHubUploadedImageLinks(body);
 
                 if (urls.isEmpty()) {
-                    System.err.println("Failed to regex the images correctly for " + body);
+                    System.err.println("Failed to regex the images for " + body);
                 }
 
                 for (URL url : urls) {
+                    if (!url.toString().contains(".png")) {
+                        System.err.println("Url is not a png: " + url);
+                        continue;
+                    }
                     BufferedImage image = ImageIO.read(url);
                     if (image == null) {
                         System.err.println("Failed to load image for " + url);
