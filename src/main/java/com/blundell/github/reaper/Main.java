@@ -4,15 +4,15 @@ import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 import com.squareup.okhttp.OkHttpClient;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,25 +74,48 @@ public class Main {
         List<GsonPullRequestId> ids = new ArrayList<GsonPullRequestId>();
         getPullRequestIds(args, url, ids);
 
+        getGitHubLoadedImagesFrom(args, ids);
+    }
+
+    private static void getGitHubLoadedImagesFrom(String[] args, List<GsonPullRequestId> ids) throws IOException {
+        int dayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH);
+        File output = new File("output/" + dayOfMonth);
+        if (!output.exists()) {
+            boolean mkdir = output.mkdir();
+            if (!mkdir) {
+                throw new YouFuckedUpError("couldn't make output folder");
+            }
+        }
         for (GsonPullRequestId requestId : ids) {
             HttpURLConnection connection = connectForPullRequest(args, requestId.number);
             GsonPullRequest request = parsePullRequest(connection);
 
             String body = request.body;
             if (body.contains("![")) {
-                List<String> urls = pullGitHubUploadedImageLinks(body);
-                System.out.println(request.number + ":" + urls);
+                List<URL> urls = pullGitHubUploadedImageLinks(body);
+
                 if (urls.isEmpty()) {
-                    System.err.println(body);
+                    System.err.println("Failed to regex the images correctly for " + body);
                 }
+
+                for (URL url : urls) {
+                    BufferedImage image = ImageIO.read(url);
+                    if (image == null) {
+                        System.err.println("Failed to load image for " + url);
+                    }
+                    File outputFile = new File("output/" + dayOfMonth + url.getPath().substring(url.getPath().lastIndexOf("/")));
+                    ImageIO.write(image, "png", outputFile);
+                }
+
+                System.out.println(request.number + ":" + urls);
             }
         }
     }
 
-    private static List<String> pullGitHubUploadedImageLinks(String text) {
-        List<String> links = new ArrayList<String>();
+    private static List<URL> pullGitHubUploadedImageLinks(String text) throws MalformedURLException {
+        List<URL> links = new ArrayList<URL>();
 
-        String regex = "\\(?\\b(https://|www[.])[-A-Za-z0-9+&@#/%?=~_()|!:,.;]*[-A-Za-z0-9+&@#/%=~_()|]";
+        String regex = "\\(?\\b(https://)[-A-Za-z0-9+&@#/%?=~_()|!:,.;]*[-A-Za-z0-9+&@#/%=~_()|]";
         Pattern p = Pattern.compile(regex);
         Matcher m = p.matcher(text);
         while (m.find()) {
@@ -100,7 +123,7 @@ public class Main {
             if (urlStr.startsWith("(") && urlStr.endsWith(")")) {
                 urlStr = urlStr.substring(1, urlStr.length() - 1);
             }
-            links.add(urlStr);
+            links.add(new URL(urlStr));
         }
         return links;
     }
