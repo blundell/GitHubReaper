@@ -7,6 +7,7 @@ import com.squareup.okhttp.OkHttpClient;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
@@ -61,11 +62,16 @@ public class Main {
     }
 
     private static void doYourThing(String[] args) throws IOException {
-        URL url = getFirstPageUrl(args);
+        URL url = getNextPageUrl(args);
         getPullRequestUrls(args, url);
     }
 
-    private static URL getFirstPageUrl(String[] args) throws IOException {
+    private static URL getNextPageUrl(String[] args) throws IOException {
+        HttpURLConnection connection = getPullRequests(args);
+        return getNextPageUrl(connection);
+    }
+
+    private static HttpURLConnection getPullRequests(String[] args) throws IOException {
         URL url = new URL("https://api.github.com/repos/" + args[2] + "/" + args[3] + "/pulls?state=all");
         OkHttpClient client = new OkHttpClient();
         HttpURLConnection connection = client.open(url);
@@ -77,23 +83,21 @@ public class Main {
         if (responseCode < 200 || responseCode >= 300) {
             throw new YouFuckedUpError(responseCode);
         }
+        return connection;
+    }
 
+    private static URL getNextPageUrl(HttpURLConnection connection) throws MalformedURLException {
         String linkHeader = connection.getHeaderField("Link");
         PageLinks pageLinks = new PageLinks(linkHeader);
         return new URL(pageLinks.getNext());
     }
 
     private static void getPullRequestUrls(String[] args, URL url) throws IOException {
-        OkHttpClient client = new OkHttpClient();
-        HttpURLConnection connection = client.open(url);
-        connection.setRequestMethod("GET");
-        connection.setRequestProperty("Accept", "application/vnd.github.beta+json");
-        String hash = new String(Base64Coder.encode((args[0] + ":" + args[1]).getBytes(UTF_8)));
-        connection.setRequestProperty("Authorization", "Basic " + hash);
-        int responseCode = connection.getResponseCode();
-        if (responseCode < 200 || responseCode >= 300) {
-            throw new YouFuckedUpError(responseCode);
-        }
+        HttpURLConnection connection = getPullRequests(args);
+        getPullRequestIds(connection);
+    }
+
+    private static void getPullRequestIds(HttpURLConnection connection) throws IOException {
         InputStream inputStream = connection.getInputStream();
         String output = new Scanner(inputStream).useDelimiter("\\A").next();
 
