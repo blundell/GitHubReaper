@@ -13,9 +13,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.squareup.okhttp.internal.Util.UTF_8;
 
+/**
+ * http://developer.github.com/v3/pulls/#list-pull-requests
+ * http://developer.github.com/v3/#pagination
+ * http://developer.github.com/v3/#rate-limiting
+ * http://developer.github.com/v3/pulls/#get-a-single-pull-request
+ */
 public class Main {
 
     /**
@@ -62,24 +70,58 @@ public class Main {
     }
 
     private static void doYourThing(String[] args) throws IOException {
-        URL url = getNextPullRequestPageUrl(args);
-        List<GsonPullRequest> pullRequests = new ArrayList<GsonPullRequest>();
-        getPullRequests(args, url, pullRequests);
+        URL url = getNextPullRequestIdsPageUrl(args);
+        List<GsonPullRequestId> ids = new ArrayList<GsonPullRequestId>();
+        getPullRequestIds(args, url, ids);
 
-        for (GsonPullRequest request : pullRequests) {
-            System.out.println("PR: " + request.getNumber());
+        for (GsonPullRequestId requestId : ids) {
+            HttpURLConnection connection = connectForPullRequest(args, requestId.number);
+            GsonPullRequest request = parsePullRequest(connection);
+
+            String body = request.body;
+            if (body.contains("![")) {
+                List<String> urls = pullGitHubUploadedImageLinks(body);
+                System.out.println(request.number + ":" + urls);
+                if (urls.isEmpty()) {
+                    System.err.println(body);
+                }
+            }
         }
     }
 
-    private static URL getNextPullRequestPageUrl(String[] args) throws IOException {
-        HttpURLConnection connection = connectForPullRequests(args, null);
+    private static List<String> pullGitHubUploadedImageLinks(String text) {
+        List<String> links = new ArrayList<String>();
+
+        String regex = "\\(?\\b(https://|www[.])[-A-Za-z0-9+&@#/%?=~_()|!:,.;]*[-A-Za-z0-9+&@#/%=~_()|]";
+        Pattern p = Pattern.compile(regex);
+        Matcher m = p.matcher(text);
+        while (m.find()) {
+            String urlStr = m.group();
+            if (urlStr.startsWith("(") && urlStr.endsWith(")")) {
+                urlStr = urlStr.substring(1, urlStr.length() - 1);
+            }
+            links.add(urlStr);
+        }
+        return links;
+    }
+
+    private static URL getNextPullRequestIdsPageUrl(String[] args) throws IOException {
+        HttpURLConnection connection = connectForPullRequestIds(args, null);
         return getNextPageUrl(connection);
     }
 
-    private static HttpURLConnection connectForPullRequests(String[] args, URL newUrl) throws IOException {
+    private static HttpURLConnection connectForPullRequestIds(String[] args, URL newUrl) throws IOException {
+        return connectFor(args, newUrl, "/pulls?state=all");
+    }
+
+    private static HttpURLConnection connectForPullRequest(String[] args, final int pullRequestNumber) throws IOException {
+        return connectFor(args, null, "/pulls/" + pullRequestNumber);
+    }
+
+    private static HttpURLConnection connectFor(String[] args, URL newUrl, String segment) throws IOException {
         URL url = newUrl;
         if (url == null) {
-            url = new URL("https://api.github.com/repos/" + args[2] + "/" + args[3] + "/pulls?state=all");
+            url = new URL("https://api.github.com/repos/" + args[2] + "/" + args[3] + segment);
         }
         OkHttpClient client = new OkHttpClient();
         HttpURLConnection connection = client.open(url);
@@ -100,31 +142,42 @@ public class Main {
         return new URL(pageLinks.getNext());
     }
 
-    private static void getPullRequests(String[] args, URL url, List<GsonPullRequest> pullRequests) throws IOException {
-        HttpURLConnection connection = connectForPullRequests(args, url);
-        pullRequests.addAll(parsePullRequests(connection));
+    private static void getPullRequestIds(String[] args, URL url, List<GsonPullRequestId> pullRequests) throws IOException {
+        HttpURLConnection connection = connectForPullRequestIds(args, url);
+        pullRequests.addAll(parsePullRequestIds(connection));
         URL nextPageUrl;
         try {
             nextPageUrl = getNextPageUrl(connection);
         } catch (MalformedURLException e) {
             return;
         }
-        getPullRequests(args, nextPageUrl, pullRequests);
+        getPullRequestIds(args, nextPageUrl, pullRequests);
     }
 
-    private static List<GsonPullRequest> parsePullRequests(HttpURLConnection connection) throws IOException {
+    private static List<GsonPullRequestId> parsePullRequestIds(HttpURLConnection connection) throws IOException {
         InputStream inputStream = connection.getInputStream();
         String output = new Scanner(inputStream).useDelimiter("\\A").next();
 
-        return Arrays.asList(new Gson().fromJson(output, GsonPullRequest[].class));
+        return Arrays.asList(new Gson().fromJson(output, GsonPullRequestId[].class));
+    }
+
+    static class GsonPullRequestId {
+        @SerializedName("number")
+        private int number;
+    }
+
+    private static GsonPullRequest parsePullRequest(HttpURLConnection connection) throws IOException {
+        InputStream inputStream = connection.getInputStream();
+        String output = new Scanner(inputStream).useDelimiter("\\A").next();
+
+        return new Gson().fromJson(output, GsonPullRequest.class);
     }
 
     static class GsonPullRequest {
         @SerializedName("number")
         private int number;
+        @SerializedName("body")
+        private String body;
 
-        public int getNumber() {
-            return number;
-        }
     }
 }
