@@ -5,7 +5,7 @@ This util will scan a GitHub repo and check all pull requests for uploaded (with
 
 It will save them back to an /output/ folder for you to view.
 
-**warning** At the moment if you run it twice on the same day on two repo's you may lose the 1st repo's files
+**warning** At the moment if you run it twice on the same day on two repo's you may lose the 1st repo's pulled image files
 
 
 How to use
