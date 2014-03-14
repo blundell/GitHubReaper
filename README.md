@@ -17,3 +17,7 @@ username, password, your github user or org name, the repo name
 for example
 
 blundell mypassword blundell githubReaper
+
+or
+
+blundell mypassword novoda imageloader
