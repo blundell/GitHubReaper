@@ -62,11 +62,15 @@ public class Main {
     }
 
     private static void doYourThing(String[] args) throws IOException {
-        URL url = getNextPageUrl(args);
-        getPullRequestUrls(args, url);
+        URL url = getNextPullRequestPageUrl(args);
+        List<GsonPullRequest> pullRequests = getPullRequests(args, url);
+
+        for (GsonPullRequest request : pullRequests) {
+            System.out.println("PR: " + request.getNumber());
+        }
     }
 
-    private static URL getNextPageUrl(String[] args) throws IOException {
+    private static URL getNextPullRequestPageUrl(String[] args) throws IOException {
         HttpURLConnection connection = getPullRequests(args);
         return getNextPageUrl(connection);
     }
@@ -92,19 +96,16 @@ public class Main {
         return new URL(pageLinks.getNext());
     }
 
-    private static void getPullRequestUrls(String[] args, URL url) throws IOException {
+    private static List<GsonPullRequest> getPullRequests(String[] args, URL url) throws IOException {
         HttpURLConnection connection = getPullRequests(args);
-        getPullRequestIds(connection);
+        return parsePullRequests(connection);
     }
 
-    private static void getPullRequestIds(HttpURLConnection connection) throws IOException {
+    private static List<GsonPullRequest> parsePullRequests(HttpURLConnection connection) throws IOException {
         InputStream inputStream = connection.getInputStream();
         String output = new Scanner(inputStream).useDelimiter("\\A").next();
 
-        List<GsonPullRequest> gsonPullRequests = Arrays.asList(new Gson().fromJson(output, GsonPullRequest[].class));
-        for (GsonPullRequest aGsonPullRequest : gsonPullRequests) {
-            System.out.println("PR: " + aGsonPullRequest.getNumber());
-        }
+        return Arrays.asList(new Gson().fromJson(output, GsonPullRequest[].class));
     }
 
     static class GsonPullRequest {
