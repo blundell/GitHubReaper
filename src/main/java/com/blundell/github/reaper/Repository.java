@@ -16,9 +16,9 @@ public class Repository {
         return owner + "/" + repo;
     }
 
-    public URL asReposWithAppended(String segment) {
+    public URL asReposWithAppended(String path) {
         try {
-            return new URL("https://api.github.com/repos/" + asPath() + segment);
+            return new URL("https://api.github.com/repos/" + asPath() + path);
         } catch (MalformedURLException e) {
             throw new YouFuckedUpError(e);
         }
