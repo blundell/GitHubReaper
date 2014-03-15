@@ -15,7 +15,7 @@ public class Main {
      * @throws IOException
      */
     public static void main(String[] args) throws IOException {
-        InputValidator.Input input = validateInput(args);
+        InputValidator.Input input = getInput(args);
         Credentials credentials = input.getCredentials();
         Repository repository = input.getRepository();
         logNumberOfApiCallsAllowedRemaining(credentials, repository);
@@ -23,8 +23,10 @@ public class Main {
         logFinished();
     }
 
-    private static InputValidator.Input validateInput(String[] args) {
-        return new InputValidator().validate(args);
+    private static InputValidator.Input getInput(String[] args) {
+        InputValidator inputValidator = new InputValidator();
+        inputValidator.validate(args);
+        return inputValidator.retrieve(args);
     }
 
     private static void logNumberOfApiCallsAllowedRemaining(Credentials credentials, Repository repository) throws IOException {

@@ -2,7 +2,7 @@ package com.blundell.github.reaper;
 
 public class InputValidator {
 
-    public Input validate(String[] args) {
+    public void validate(String[] args) {
         if (args.length == 0) {
             throw new YouFuckedUpError("Argument 1 needs to be your username");
         }
@@ -15,7 +15,9 @@ public class InputValidator {
         if (args.length == 3) {
             throw new YouFuckedUpError("Argument 4 needs to be a github repo name");
         }
+    }
 
+    public Input retrieve(String[] args) {
         return new Input(getCredentials(args), getRepository(args));
     }
 
