@@ -27,7 +27,8 @@ public class Main {
         String password = args[1];
         String owner = args[2];
         String repo = args[3];
-        new Reaper().reapImages(username, password, owner, repo);
+        Credentials credentials = Credentials.generate(username, password);
+        new Reaper().reapImages(credentials, owner, repo);
         System.out.println("Complete");
     }
 

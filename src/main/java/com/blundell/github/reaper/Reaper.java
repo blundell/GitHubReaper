@@ -16,32 +16,30 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.squareup.okhttp.internal.Util.UTF_8;
-
 public class Reaper {
 
-    void reapImages(String username, String password, String owner, String repo) throws IOException {
-        URL url = getNextPullRequestIdsPageUrl(username, password, owner, repo);
+    void reapImages(Credentials credentials, String owner, String repo) throws IOException {
+        URL url = getNextPullRequestIdsPageUrl(credentials, owner, repo);
         List<GsonPullRequestId> ids = new ArrayList<GsonPullRequestId>();
-        getPullRequestIds(username, password, owner, repo, url, ids);
+        getPullRequestIds(credentials, owner, repo, url, ids);
 
-        getGitHubLoadedImagesFrom(username, password, owner, repo, ids);
+        getGitHubLoadedImagesFrom(credentials, owner, repo, ids);
     }
 
-    private static URL getNextPullRequestIdsPageUrl(String username, String password, String owner, String repo) throws IOException {
-        HttpURLConnection connection = connectForPullRequestIds(username, password, owner, repo, null);
+    private static URL getNextPullRequestIdsPageUrl(Credentials credentials, String owner, String repo) throws IOException {
+        HttpURLConnection connection = connectForPullRequestIds(credentials, owner, repo, null);
         return getNextPageUrl(connection);
     }
 
-    private static HttpURLConnection connectForPullRequestIds(String username, String password, String owner, String repo, URL newUrl) throws IOException {
-        return connectFor(username, password, owner, repo, newUrl, "/pulls?state=all");
+    private static HttpURLConnection connectForPullRequestIds(Credentials credentials, String owner, String repo, URL newUrl) throws IOException {
+        return connectFor(credentials, owner, repo, newUrl, "/pulls?state=all");
     }
 
-    private static HttpURLConnection connectForPullRequest(String username, String password, String owner, String repo, final int pullRequestNumber) throws IOException {
-        return connectFor(username, password, owner, repo, null, "/pulls/" + pullRequestNumber);
+    private static HttpURLConnection connectForPullRequest(Credentials credentials, String owner, String repo, final int pullRequestNumber) throws IOException {
+        return connectFor(credentials, owner, repo, null, "/pulls/" + pullRequestNumber);
     }
 
-    private static HttpURLConnection connectFor(String username, String password, String owner, String repo, URL newUrl, String segment) throws IOException {
+    private static HttpURLConnection connectFor(Credentials credentials, String owner, String repo, URL newUrl, String segment) throws IOException {
         URL url = newUrl;
         if (url == null) {
             url = new URL("https://api.github.com/repos/" + owner + "/" + repo + segment);
@@ -50,7 +48,7 @@ public class Reaper {
         HttpURLConnection connection = client.open(url);
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/vnd.github.beta+json");
-        String hash = new String(Base64Coder.encode((username + ":" + password).getBytes(UTF_8)));
+        String hash = credentials.getHashed();
         connection.setRequestProperty("Authorization", "Basic " + hash);
         int responseCode = connection.getResponseCode();
         if (responseCode < 200 || responseCode >= 300) {
@@ -65,8 +63,8 @@ public class Reaper {
         return new URL(pageLinks.getNext());
     }
 
-    private static void getPullRequestIds(String username, String password, String owner, String repo, URL url, List<GsonPullRequestId> pullRequests) throws IOException {
-        HttpURLConnection connection = connectForPullRequestIds(username, password, owner, repo, url);
+    private static void getPullRequestIds(Credentials credentials, String owner, String repo, URL url, List<GsonPullRequestId> pullRequests) throws IOException {
+        HttpURLConnection connection = connectForPullRequestIds(credentials, owner, repo, url);
         pullRequests.addAll(parsePullRequestIds(connection));
         URL nextPageUrl;
         try {
@@ -74,7 +72,7 @@ public class Reaper {
         } catch (MalformedURLException e) {
             return;
         }
-        getPullRequestIds(username, password, owner, repo, nextPageUrl, pullRequests);
+        getPullRequestIds(credentials, owner, repo, nextPageUrl, pullRequests);
     }
 
     private static List<GsonPullRequestId> parsePullRequestIds(HttpURLConnection connection) throws IOException {
@@ -104,7 +102,7 @@ public class Reaper {
 
     }
 
-    private static void getGitHubLoadedImagesFrom(String username, String password, String owner, String repo, List<GsonPullRequestId> ids) throws IOException {
+    private static void getGitHubLoadedImagesFrom(Credentials credentials, String owner, String repo, List<GsonPullRequestId> ids) throws IOException {
         int dayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH);
         File output = new File("output/" + dayOfMonth);
         if (!output.exists()) {
@@ -114,7 +112,7 @@ public class Reaper {
             }
         }
         for (GsonPullRequestId requestId : ids) {
-            HttpURLConnection connection = connectForPullRequest(username, password, owner, repo, requestId.number);
+            HttpURLConnection connection = connectForPullRequest(credentials, owner, repo, requestId.number);
             GsonPullRequest request = parsePullRequest(connection);
 
             String body = request.body;
