@@ -42,7 +42,7 @@ public class Reaper {
     private static HttpURLConnection connectFor(Credentials credentials, Repository repository, URL newUrl, String path) throws IOException {
         URL url = newUrl;
         if (url == null) {
-            url = repository.asUrlWithAppended(path);
+            url = repository.asReposWithAppended(path);
         }
         OkHttpClient client = new OkHttpClient();
         HttpURLConnection connection = client.open(url);

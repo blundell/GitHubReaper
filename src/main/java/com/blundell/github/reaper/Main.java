@@ -4,9 +4,6 @@ import com.squareup.okhttp.OkHttpClient;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URL;
-
-import static com.squareup.okhttp.internal.Util.UTF_8;
 
 /**
  * http://developer.github.com/v3/pulls/#list-pull-requests
@@ -22,13 +19,13 @@ public class Main {
      */
     public static void main(String[] args) throws IOException {
         validate(args);
-        checkRates(args);
         String username = args[0];
         String password = args[1];
         String owner = args[2];
-        String repo = args[3];
+        String repoName = args[3];
         Credentials credentials = Credentials.generate(username, password);
-        Repository repository = new Repository(owner, repo);
+        Repository repository = new Repository(owner, repoName);
+        checkRates(credentials, repository);
         new Reaper().reapImages(credentials, repository);
         System.out.println("Complete");
     }
@@ -48,13 +45,12 @@ public class Main {
         }
     }
 
-    private static void checkRates(String[] args) throws IOException {
-        URL url = new URL("https://api.github.com/users/" + args[2]);
+    private static void checkRates(Credentials credentials, Repository repository) throws IOException {
         OkHttpClient client = new OkHttpClient();
-        HttpURLConnection connection = client.open(url);
+        HttpURLConnection connection = client.open(repository.asUsers());
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/vnd.github.beta+json");
-        String hash = new String(Base64Coder.encode((args[0] + ":" + args[1]).getBytes(UTF_8)));
+        String hash = credentials.getHashed();
         connection.setRequestProperty("Authorization", "Basic " + hash);
         int responseCode = connection.getResponseCode();
         if (responseCode < 200 || responseCode >= 300) {
