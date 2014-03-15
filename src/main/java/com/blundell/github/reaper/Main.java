@@ -23,7 +23,11 @@ public class Main {
     public static void main(String[] args) throws IOException {
         validate(args);
         checkRates(args);
-        new Reaper().reapImages(args);
+        String username = args[0];
+        String password = args[1];
+        String owner = args[2];
+        String repo = args[3];
+        new Reaper().reapImages(username, password, owner, repo);
         System.out.println("Complete");
     }
 
