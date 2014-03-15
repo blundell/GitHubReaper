@@ -18,31 +18,31 @@ import java.util.regex.Pattern;
 
 public class Reaper {
 
-    void reapImages(Credentials credentials, String owner, String repo) throws IOException {
-        URL url = getNextPullRequestIdsPageUrl(credentials, owner, repo);
+    void reapImages(Credentials credentials, Repository repository) throws IOException {
+        URL url = getNextPullRequestIdsPageUrl(credentials, repository);
         List<GsonPullRequestId> ids = new ArrayList<GsonPullRequestId>();
-        getPullRequestIds(credentials, owner, repo, url, ids);
+        getPullRequestIds(credentials, repository, url, ids);
 
-        getGitHubLoadedImagesFrom(credentials, owner, repo, ids);
+        getGitHubLoadedImagesFrom(credentials, repository, ids);
     }
 
-    private static URL getNextPullRequestIdsPageUrl(Credentials credentials, String owner, String repo) throws IOException {
-        HttpURLConnection connection = connectForPullRequestIds(credentials, owner, repo, null);
+    private static URL getNextPullRequestIdsPageUrl(Credentials credentials, Repository repository) throws IOException {
+        HttpURLConnection connection = connectForPullRequestIds(credentials, repository, null);
         return getNextPageUrl(connection);
     }
 
-    private static HttpURLConnection connectForPullRequestIds(Credentials credentials, String owner, String repo, URL newUrl) throws IOException {
-        return connectFor(credentials, owner, repo, newUrl, "/pulls?state=all");
+    private static HttpURLConnection connectForPullRequestIds(Credentials credentials, Repository repository, URL newUrl) throws IOException {
+        return connectFor(credentials, repository, newUrl, "/pulls?state=all");
     }
 
-    private static HttpURLConnection connectForPullRequest(Credentials credentials, String owner, String repo, final int pullRequestNumber) throws IOException {
-        return connectFor(credentials, owner, repo, null, "/pulls/" + pullRequestNumber);
+    private static HttpURLConnection connectForPullRequest(Credentials credentials, Repository repository, final int pullRequestNumber) throws IOException {
+        return connectFor(credentials, repository, null, "/pulls/" + pullRequestNumber);
     }
 
-    private static HttpURLConnection connectFor(Credentials credentials, String owner, String repo, URL newUrl, String segment) throws IOException {
+    private static HttpURLConnection connectFor(Credentials credentials, Repository repository, URL newUrl, String path) throws IOException {
         URL url = newUrl;
         if (url == null) {
-            url = new URL("https://api.github.com/repos/" + owner + "/" + repo + segment);
+            url = repository.asUrlWithAppended(path);
         }
         OkHttpClient client = new OkHttpClient();
         HttpURLConnection connection = client.open(url);
@@ -63,8 +63,8 @@ public class Reaper {
         return new URL(pageLinks.getNext());
     }
 
-    private static void getPullRequestIds(Credentials credentials, String owner, String repo, URL url, List<GsonPullRequestId> pullRequests) throws IOException {
-        HttpURLConnection connection = connectForPullRequestIds(credentials, owner, repo, url);
+    private static void getPullRequestIds(Credentials credentials, Repository repository, URL url, List<GsonPullRequestId> pullRequests) throws IOException {
+        HttpURLConnection connection = connectForPullRequestIds(credentials, repository, url);
         pullRequests.addAll(parsePullRequestIds(connection));
         URL nextPageUrl;
         try {
@@ -72,7 +72,7 @@ public class Reaper {
         } catch (MalformedURLException e) {
             return;
         }
-        getPullRequestIds(credentials, owner, repo, nextPageUrl, pullRequests);
+        getPullRequestIds(credentials, repository, nextPageUrl, pullRequests);
     }
 
     private static List<GsonPullRequestId> parsePullRequestIds(HttpURLConnection connection) throws IOException {
@@ -102,7 +102,7 @@ public class Reaper {
 
     }
 
-    private static void getGitHubLoadedImagesFrom(Credentials credentials, String owner, String repo, List<GsonPullRequestId> ids) throws IOException {
+    private static void getGitHubLoadedImagesFrom(Credentials credentials, Repository repository, List<GsonPullRequestId> ids) throws IOException {
         int dayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH);
         File output = new File("output/" + dayOfMonth);
         if (!output.exists()) {
@@ -112,7 +112,7 @@ public class Reaper {
             }
         }
         for (GsonPullRequestId requestId : ids) {
-            HttpURLConnection connection = connectForPullRequest(credentials, owner, repo, requestId.number);
+            HttpURLConnection connection = connectForPullRequest(credentials, repository, requestId.number);
             GsonPullRequest request = parsePullRequest(connection);
 
             String body = request.body;
