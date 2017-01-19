@@ -159,6 +159,9 @@ public class Reaper {
         Matcher m = p.matcher(text);
         while (m.find()) {
             String urlStr = m.group();
+            if (urlStr.endsWith("|")) {
+                urlStr = urlStr.substring(0, urlStr.length() - 1);
+            }
             if (urlStr.startsWith("(") && urlStr.endsWith(")")) {
                 urlStr = urlStr.substring(1, urlStr.length() - 1);
             }
