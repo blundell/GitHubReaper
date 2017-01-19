@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 import com.squareup.okhttp.OkHttpClient;
 
+import javax.imageio.IIOException;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -12,7 +13,11 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -128,12 +133,17 @@ public class Reaper {
                         System.err.println("Url is not a png: " + url);
                         continue;
                     }
-                    BufferedImage image = ImageIO.read(url);
-                    if (image == null) {
-                        System.err.println("Failed to load image for " + url);
+                    try {
+                        BufferedImage image = ImageIO.read(url);
+                        if (image == null) {
+                            System.err.println("Failed to load image for " + url);
+                            continue;
+                        }
+                        File outputFile = new File("output/" + dayOfMonth + url.getPath().substring(url.getPath().lastIndexOf("/")));
+                        ImageIO.write(image, "png", outputFile);
+                    } catch (IIOException e) {
+                        System.err.println("Failed to find an image at " + url);
                     }
-                    File outputFile = new File("output/" + dayOfMonth + url.getPath().substring(url.getPath().lastIndexOf("/")));
-                    ImageIO.write(image, "png", outputFile);
                 }
 
                 System.out.println(request.number + ":" + urls);
